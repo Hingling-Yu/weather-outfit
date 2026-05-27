@@ -1,0 +1,15 @@
+# macOS system files
+.DS_Store
+
+# Environment variables (API keys, secrets)
+.env
+.env.local
+
+# Node.js dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Editor cache
+.vscode/

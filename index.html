@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Outing Planner 🌤️</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 100%);
+      min-height: 100vh;
+    }
+    h1 { text-align: center; color: #1e293b; margin-bottom: 30px; }
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input[type="text"] {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+    }
+    button {
+      padding: 12px 24px;
+      background: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    button:hover { background: #357abd; }
+    .time-controls {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .time-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .time-row label {
+      font-weight: 600;
+      color: #475569;
+      min-width: 60px;
+    }
+    input[type="range"] { flex: 1; min-width: 200px; }
+    .time-display {
+      font-size: 18px;
+      font-weight: 700;
+      color: #4a90e2;
+      min-width: 80px;
+      text-align: center;
+    }
+    #results { display: none; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .stat {
+      text-align: center;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; }
+    .stat-value { font-size: 24px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+    .chart-container { position: relative; height: 250px; margin-top: 16px; }
+    .advice-section h3 {
+      color: #1e293b;
+      margin-bottom: 12px;
+      border-left: 4px solid #4a90e2;
+      padding-left: 12px;
+    }
+    .advice-item {
+      padding: 10px 14px;
+      background: #f0f9ff;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+    .advice-warning { background: #fef3c7; }
+    .advice-danger { background: #fee2e2; }
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .scenario-card {
+      padding: 14px;
+      background: #f8fafc;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+    }
+    .scenario-title { font-weight: 700; margin-bottom: 6px; color: #1e293b; }
+    .scenario-tip { font-size: 14px; color: #475569; }
+    .loading { text-align: center; padding: 40px; color: #64748b; }
+  </style>
+</head>
+<body>
+
+  <h1>🌤️ Outing Planner</h1>
+
+  <div class="card">
+    <div class="input-row">
+      <input type="text" id="city" placeholder="Enter city (e.g. New York, Hong Kong)" value="New York" />
+      <button onclick="searchCity()">Search</button>
+    </div>
+
+    <div class="time-controls" id="timeControls" style="display:none;">
+      <div style="font-weight:600; color:#475569;">⏱️ When are you going out?</div>
+      <div class="time-row">
+        <label>Start:</label>
+        <input type="range" id="startHour" min="0" max="47" value="0" />
+        <div class="time-display" id="startDisplay">Now</div>
+      </div>
+      <div class="time-row">
+        <label>End:</label>
+        <input type="range" id="endHour" min="1" max="48" value="3" />
+        <div class="time-display" id="endDisplay">+3h</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading" style="display:none;">Loading weather data...</div>
+  <div id="results"></div>
+
+  <script>
+    let hourlyData = null;
+    let charts = {};
+
+    async function searchCity() {
+      const city = document.getElementById("city").value.trim();
+      if (!city) return alert("Please enter a city!");
+
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("results").style.display = "none";
+
+      try {
+        // Step 1: Get coordinates from city name
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+        const geoRes = await fetch(geoUrl);
+        const geoData = await geoRes.json();
+
+        if (!geoData.results || geoData.results.length === 0) {
+          alert("City not found! Please check spelling.");
+          document.getElementById("loading").style.display = "none";
+          return;
+        }
+
+        const { latitude, longitude, name, country } = geoData.results[0];
+
+        // Step 2: Get hourly forecast (48 hours)
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,wind_speed_10m,relative_humidity_2m,uv_index,weather_code&temperature_unit=celsius&wind_speed_unit=ms&forecast_days=2&timezone=auto`;
+        const weatherRes = await fetch(weatherUrl);
+        hourlyData = await weatherRes.json();
+        hourlyData.cityName = `${name}, ${country}`;
+
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("timeControls").style.display = "block";
+        document.getElementById("results").style.display = "block";
+
+        updateResults();
+      } catch (e) {
+        alert("Error loading data. Please try again.");
+        document.getElementById("loading").style.display = "none";
+        console.error(e);
+      }
+    }
+
+    // Slider event listeners
+    document.getElementById("startHour").addEventListener("input", updateResults);
+    document.getElementById("endHour").addEventListener("input", updateResults);
+
+    function formatHour(offset) {
+      if (offset === 0) return "Now";
+      const d = new Date();
+      d.setHours(d.getHours() + offset);
+      const h = d.getHours();
+      const day = offset >= 24 ? " (next day)" : "";
+      return `${h}:00${day}`;
+    }
+
+    function updateResults() {
+      if (!hourlyData) return;
+
+      let start = parseInt(document.getElementById("startHour").value);
+      let end = parseInt(document.getElementById("endHour").value);
+
+      // Make sure end > start
+      if (end <= start) {
+        end = start + 1;
+        document.getElementById("endHour").value = end;
+      }
+
+      document.getElementById("startDisplay").innerText = formatHour(start);
+      document.getElementById("endDisplay").innerText = formatHour(end);
+
+      renderResults(start, end);
+    }
+
+    function renderResults(start, end) {
+      const h = hourlyData.hourly;
+      const slice = (arr) => arr.slice(start, end + 1);
+
+      const temps = slice(h.temperature_2m);
+      const feels = slice(h.apparent_temperature);
+      const rain = slice(h.precipitation_probability);
+      const wind = slice(h.wind_speed_10m);
+      const humid = slice(h.relative_humidity_2m);
+      const uv = slice(h.uv_index);
+
+      const labels = [];
+      for (let i = start; i <= end; i++) labels.push(formatHour(i));
+
+      // Calculate stats
+      const minTemp = Math.min(...temps).toFixed(1);
+      const maxTemp = Math.max(...temps).toFixed(1);
+      const avgFeel = (feels.reduce((a,b)=>a+b,0)/feels.length).toFixed(1);
+      const maxRain = Math.max(...rain);
+      const maxWind = Math.max(...wind).toFixed(1);
+      const maxUV = Math.max(...uv).toFixed(1);
+      const avgHumid = Math.round(humid.reduce((a,b)=>a+b,0)/humid.length);
+
+      // Generate advice
+      const advice = generateAdvice(minTemp, maxTemp, avgFeel, maxRain, maxWind, maxUV, avgHumid);
+      const scenarios = generateScenarios(avgFeel, maxRain, maxWind, maxUV, avgHumid);
+
+      document.getElementById("results").innerHTML = `
+        <div class="card">
+          <h2 style="margin:0;">${hourlyData.cityName}</h2>
+          <div style="color:#64748b; margin-top:4px;">${formatHour(start)} → ${formatHour(end)}</div>
+          <div class="summary">
+            <div class="stat"><div class="stat-label">Temp Range</div><div class="stat-value">${minTemp}° ~ ${maxTemp}°</div></div>
+            <div class="stat"><div class="stat-label">Feels Like</div><div class="stat-value">${avgFeel}°C</div></div>
+            <div class="stat"><div class="stat-label">Rain Chance</div><div class="stat-value">${maxRain}%</div></div>
+            <div class="stat"><div class="stat-label">Max Wind</div><div class="stat-value">${maxWind} m/s</div></div>
+            <div class="stat"><div class="stat-label">Max UV</div><div class="stat-value">${maxUV}</div></div>
+            <div class="stat"><div class="stat-label">Humidity</div><div class="stat-value">${avgHumid}%</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">📈 Temperature & Feels Like</h3>
+          <div class="chart-container"><canvas id="tempChart"></canvas></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">🌧️ Rain Probability</h3>
+          <div class="chart-container"><canvas id="rainChart"></canvas></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">💨 Wind & Humidity</h3>
+          <div class="chart-container"><canvas id="windChart"></canvas></div>
+        </div>
+
+        <div class="card advice-section">
+          <h3>👕 What to Wear & Bring</h3>
+          ${advice.map(a => `<div class="advice-item ${a.level || ''}">${a.text}</div>`).join("")}
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">🎯 Activity Tips</h3>
+          <div class="scenario-grid">
+            ${scenarios.map(s => `
+              <div class="scenario-card">
+                <div class="scenario-title">${s.title}</div>
+                <div class="scenario-tip">${s.tip}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      // Render charts
+      renderCharts(labels, temps, feels, rain, wind, humid);
+    }
+
+    function renderCharts(labels, temps, feels, rain, wind, humid) {
+      // Destroy old charts
+      Object.values(charts).forEach(c => c.destroy());
+      charts = {};
+
+      charts.temp = new Chart(document.getElementById('tempChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Temperature (°C)', data: temps, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.3, fill: true },
+            { label: 'Feels Like (°C)', data: feels, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.3, borderDash: [5,5] }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      charts.rain = new Chart(document.getElementById('rainChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ label: 'Rain Chance (%)', data: rain, backgroundColor: '#3b82f6' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, beginAtZero: true } } }
+      });
+
+      charts.wind = new Chart(document.getElementById('windChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Wind (m/s)', data: wind, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, yAxisID: 'y' },
+            { label: 'Humidity (%)', data: humid, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', tension: 0.3, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y: { type: 'linear', position: 'left', title: { display: true, text: 'Wind (m/s)' } },
+            y1: { type: 'linear', position: 'right', max: 100, title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+
+    function generateAdvice(minT, maxT, feel, rain, wind, uv, humid) {
+      const advice = [];
+      const f = parseFloat(feel);
+
+      // Outfit
+      if (f >= 28) advice.push({ text: "👕 T-shirt + shorts. It's hot out there!", level: "advice-warning" });
+      else if (f >= 22) advice.push({ text: "👔 Light long sleeve or t-shirt. Comfortable weather." });
+      else if (f >= 15) advice.push({ text: "🧥 Add a light jacket or cardigan." });
+      else if (f >= 8) advice.push({ text: "🧥 Sweater + medium coat. It's chilly." });
+      else if (f >= 0) advice.push({ text: "🧣 Heavy coat + scarf. Bundle up!", level: "advice-warning" });
+      else advice.push({ text: "🥶 Puffer jacket + gloves + hat. Freezing!", level: "advice-danger" });
+
+      // Temp range
+      if (maxT - minT >= 8) advice.push({ text: `🌡️ Big temp swing (${minT}° → ${maxT}°). Wear layers!`, level: "advice-warning" });
+
+      // Rain
+      if (rain >= 70) advice.push({ text: "☔ High rain chance. Bring umbrella + waterproof shoes!", level: "advice-danger" });
+      else if (rain >= 40) advice.push({ text: "🌂 Possible rain. Pack a foldable umbrella.", level: "advice-warning" });
+      else if (rain >= 20) advice.push({ text: "☁️ Slight chance of rain. Maybe just in case." });
+
+      // Wind
+      if (wind >= 10) advice.push({ text: "💨 Strong wind! Avoid loose hats and skirts. Windproof jacket.", level: "advice-danger" });
+      else if (wind >= 7) advice.push({ text: "💨 Windy. Consider a windbreaker.", level: "advice-warning" });
+
+      // UV
+      if (uv >= 8) advice.push({ text: "☀️ Very high UV! SPF 50+, hat, and sunglasses are a must.", level: "advice-danger" });
+      else if (uv >= 6) advice.push({ text: "🕶️ High UV. Apply sunscreen, wear sunglasses.", level: "advice-warning" });
+      else if (uv >= 3) advice.push({ text: "🧴 Moderate UV. Sunscreen recommended." });
+
+      // Humidity
+      if (humid >= 80) advice.push({ text: "💧 Very humid. Wear breathable fabrics. Stay hydrated!", level: "advice-warning" });
+      else if (humid <= 30) advice.push({ text: "🏜️ Very dry. Use moisturizer and lip balm. Hydrate!", level: "advice-warning" });
+
+      return advice;
+    }
+
+    function generateScenarios(feel, rain, wind, uv, humid) {
+      const f = parseFloat(feel);
+      return [
+        {
+          title: "💼 Work / Commute",
+          tip: rain >= 40 ? "Leave 10 min early; rain slows transit." : (f >= 28 ? "Carry water; bring backup deodorant." : "Normal commute, but check transit.")
+        },
+        {
+          title: "🏃 Outdoor Exercise",
+          tip: uv >= 6 ? "Run early morning or after 5pm to avoid UV." : (f <= 5 ? "Warm up indoors first. Cover ears." : f >= 28 ? "Hydrate every 15 min. Avoid noon." : "Great weather for a run!")
+        },
+        {
+          title: "💕 Date / Social",
+          tip: rain >= 40 ? "Pick an indoor venue (café, museum)." : (wind >= 7 ? "Avoid rooftop bars; wind ruins hair." : "Outdoor patio is perfect!")
+        },
+        {
+          title: "📸 Photo / Strolling",
+          tip: rain >= 40 ? "Rainy reflections look great — bring a clear umbrella!" : (uv >= 6 ? "Golden hour (1hr before sunset) for best photos." : "Lighting's good — go shoot!")
+        },
+        {
+          title: "💧 Hydration",
+          tip: f >= 28 || uv >= 7 ? "Drink 500ml every 2 hours. Carry a bottle." : "Normal hydration. ~1.5L for the outing."
+        },
+        {
+          title: "🤧 Allergy / Health",
+          tip: wind >= 7 ? "Wind kicks up pollen — wear a mask if sensitive." : (humid <= 30 ? "Dry air irritates throat. Sip warm water." : "Normal conditions.")
+        }
+      ];
+    }
+
+    // Auto-search on load
+    window.addEventListener("DOMContentLoaded", searchCity);
+  </script>
+
+</body>
+</html>
