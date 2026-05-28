@@ -2,151 +2,394 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Outing Planner 🌤️</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outing Planner</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    * { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 20px;
-      background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 100%);
       min-height: 100vh;
+      padding: 36px 20px 48px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #0f2d5e 0%, #1d4ed8 45%, #92400e 100%);
+      transition: background 1s ease;
     }
-    h1 { text-align: center; color: #1e293b; margin-bottom: 30px; }
+
+    body.bg-sunny-day { background: linear-gradient(135deg, #0f2d5e 0%, #1d4ed8 45%, #92400e 100%); }
+    body.bg-rainy      { background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #111827 100%); }
+    body.bg-cloudy     { background: linear-gradient(135deg, #1f2937 0%, #374151 55%, #1e3a5f 100%); }
+    body.bg-night      { background: linear-gradient(135deg, #020617 0%, #0f172a 55%, #1e1b4b 100%); }
+
+    .app { max-width: 1120px; margin: 0 auto; }
+
+    /* ── Header ── */
+    .app-header { margin-bottom: 28px; }
+    .app-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* ── Glassmorphism card ── */
     .card {
-      background: white;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
       padding: 24px;
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
     }
-    .input-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
+
+    .card-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.45);
     }
+
+    /* ── Top bento row ── */
+    .top-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+      align-items: start;
+    }
+
+    /* ── Search panel ── */
+    .input-row { display: flex; gap: 10px; }
+
     input[type="text"] {
       flex: 1;
-      min-width: 200px;
-      padding: 12px;
-      font-size: 16px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 15px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      color: #ffffff;
+      outline: none;
+      transition: border-color 0.2s;
     }
+    input[type="text"]::placeholder { color: rgba(255,255,255,0.35); }
+    input[type="text"]:focus { border-color: rgba(96,165,250,0.6); }
+
     button {
-      padding: 12px 24px;
-      background: #4a90e2;
-      color: white;
+      padding: 12px 22px;
+      background: #60a5fa;
+      color: #0f172a;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      transition: background 0.2s;
     }
-    button:hover { background: #357abd; }
+    button:hover { background: #93c5fd; }
+
     .time-controls {
       margin-top: 20px;
       padding-top: 20px;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid rgba(255,255,255,0.1);
     }
+
+    .time-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 14px;
+    }
+
     .time-row {
       display: flex;
-      gap: 16px;
       align-items: center;
-      flex-wrap: wrap;
-      margin-top: 12px;
+      gap: 14px;
+      margin-bottom: 12px;
     }
     .time-row label {
-      font-weight: 600;
-      color: #475569;
-      min-width: 60px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.45);
+      min-width: 34px;
     }
-    input[type="range"] { flex: 1; min-width: 200px; }
+
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.18);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #60a5fa;
+      cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.25);
+    }
+
     .time-display {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: 700;
-      color: #4a90e2;
-      min-width: 80px;
-      text-align: center;
+      color: #60a5fa;
+      min-width: 72px;
+      text-align: right;
     }
+
+    /* ── Overview panel ── */
+    .overview-placeholder {
+      font-size: 14px;
+      color: rgba(255,255,255,0.25);
+      padding: 8px 0;
+    }
+
+    .overview-city {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 6px;
+    }
+
+    .overview-time {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 14px;
+    }
+
+    .overview-temp {
+      font-size: 56px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .temp-unit {
+      font-size: 22px;
+      font-weight: 300;
+      opacity: 0.5;
+    }
+
+    .overview-feels {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 20px;
+    }
+
+    .overview-mini-stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .mini-stat { display: flex; flex-direction: column; gap: 3px; }
+    .mini-stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.35);
+    }
+    .mini-stat-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* ── Results container ── */
     #results { display: none; }
-    .summary {
+    #results > * { margin-bottom: 16px; }
+    #results > *:last-child { margin-bottom: 0; }
+
+    /* ── Chart rows ── */
+    .charts-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: 3fr 2fr;
       gap: 16px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 220px;
       margin-top: 16px;
     }
+
+    /* ── Stats grid (conditions card) ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
     .stat {
-      text-align: center;
       padding: 12px;
-      background: #f8fafc;
-      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
     }
-    .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; }
-    .stat-value { font-size: 24px; font-weight: 700; color: #1e293b; margin-top: 4px; }
-    .chart-container { position: relative; height: 250px; margin-top: 16px; }
-    .advice-section h3 {
-      color: #1e293b;
-      margin-bottom: 12px;
-      border-left: 4px solid #4a90e2;
-      padding-left: 12px;
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 4px;
     }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .stat-unit {
+      font-size: 11px;
+      font-weight: 400;
+      opacity: 0.45;
+    }
+
+    /* ── Advice ── */
+    .advice-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
     .advice-item {
-      padding: 10px 14px;
-      background: #f0f9ff;
-      border-radius: 8px;
-      margin-bottom: 8px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.06);
+      border-left: 3px solid rgba(255,255,255,0.15);
+      border-radius: 0 10px 10px 0;
       font-size: 15px;
+      color: rgba(255,255,255,0.8);
+      line-height: 1.6;
     }
-    .advice-warning { background: #fef3c7; }
-    .advice-danger { background: #fee2e2; }
+
+    .advice-warning {
+      background: rgba(251,191,36,0.1);
+      border-left-color: #fbbf24;
+    }
+
+    .advice-danger {
+      background: rgba(239,68,68,0.1);
+      border-left-color: #ef4444;
+    }
+
+    /* ── Scenario grid ── */
     .scenario-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
-      margin-top: 12px;
+      margin-top: 16px;
     }
+
     .scenario-card {
-      padding: 14px;
-      background: #f8fafc;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
+      padding: 16px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.07);
     }
-    .scenario-title { font-weight: 700; margin-bottom: 6px; color: #1e293b; }
-    .scenario-tip { font-size: 14px; color: #475569; }
-    .loading { text-align: center; padding: 40px; color: #64748b; }
+
+    .scenario-icon {
+      width: 22px;
+      height: 22px;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 10px;
+    }
+    .scenario-icon svg { width: 100%; height: 100%; }
+
+    .scenario-name {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 6px;
+    }
+
+    .scenario-tip {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.55;
+    }
+
+    /* ── Loading ── */
+    #loading {
+      text-align: center;
+      padding: 48px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.4);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      body { padding: 24px 14px 40px; }
+      .top-grid { grid-template-columns: 1fr; }
+      .charts-row { grid-template-columns: 1fr; }
+      .scenario-grid { grid-template-columns: repeat(2, 1fr); }
+      .overview-temp { font-size: 44px; }
+    }
+
+    @media (max-width: 460px) {
+      .scenario-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
 
-  <h1>🌤️ Outing Planner</h1>
+  <div class="app">
 
-  <div class="card">
-    <div class="input-row">
-      <input type="text" id="city" placeholder="Enter city (e.g. New York, Hong Kong)" value="New York" />
-      <button onclick="searchCity()">Search</button>
+    <div class="app-header">
+      <div class="app-title">Outing Planner</div>
     </div>
 
-    <div class="time-controls" id="timeControls" style="display:none;">
-      <div style="font-weight:600; color:#475569;">⏱️ When are you going out?</div>
-      <div class="time-row">
-        <label>Start:</label>
-        <input type="range" id="startHour" min="0" max="47" value="0" />
-        <div class="time-display" id="startDisplay">Now</div>
+    <div class="top-grid">
+      <!-- Search + time controls -->
+      <div class="card">
+        <div class="input-row">
+          <input type="text" id="city" placeholder="Enter city (e.g. New York, Tokyo)" value="New York" />
+          <button onclick="searchCity()">Search</button>
+        </div>
+
+        <div class="time-controls" id="timeControls" style="display:none;">
+          <div class="time-section-label">When are you going out?</div>
+          <div class="time-row">
+            <label>Start</label>
+            <input type="range" id="startHour" min="0" max="47" value="0" />
+            <div class="time-display" id="startDisplay">Now</div>
+          </div>
+          <div class="time-row">
+            <label>End</label>
+            <input type="range" id="endHour" min="1" max="48" value="3" />
+            <div class="time-display" id="endDisplay">+3h</div>
+          </div>
+        </div>
       </div>
-      <div class="time-row">
-        <label>End:</label>
-        <input type="range" id="endHour" min="1" max="48" value="3" />
-        <div class="time-display" id="endDisplay">+3h</div>
+
+      <!-- Overview panel — filled by JS -->
+      <div class="card" id="overviewPanel">
+        <div class="overview-placeholder">Search a city to view conditions</div>
       </div>
     </div>
+
+    <div id="loading" style="display:none;">Loading weather data...</div>
+    <div id="results"></div>
+
   </div>
-
-  <div id="loading" class="loading" style="display:none;">Loading weather data...</div>
-  <div id="results"></div>
 
   <script>
     let hourlyData = null;
@@ -160,7 +403,6 @@
       document.getElementById("results").style.display = "none";
 
       try {
-        // Step 1: Get coordinates from city name
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
         const geoRes = await fetch(geoUrl);
         const geoData = await geoRes.json();
@@ -173,7 +415,6 @@
 
         const { latitude, longitude, name, country } = geoData.results[0];
 
-        // Step 2: Get hourly forecast (48 hours)
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,wind_speed_10m,relative_humidity_2m,uv_index,weather_code&temperature_unit=celsius&wind_speed_unit=ms&forecast_days=2&timezone=auto`;
         const weatherRes = await fetch(weatherUrl);
         hourlyData = await weatherRes.json();
@@ -191,7 +432,6 @@
       }
     }
 
-    // Slider event listeners
     document.getElementById("startHour").addEventListener("input", updateResults);
     document.getElementById("endHour").addEventListener("input", updateResults);
 
@@ -208,7 +448,7 @@
       if (!hourlyData) return;
 
       let sliderStart = parseInt(document.getElementById("startHour").value);
-      let sliderEnd = parseInt(document.getElementById("endHour").value);
+      let sliderEnd   = parseInt(document.getElementById("endHour").value);
 
       if (sliderEnd <= sliderStart) {
         sliderEnd = sliderStart + 1;
@@ -216,10 +456,8 @@
       }
 
       document.getElementById("startDisplay").innerText = formatHour(sliderStart);
-      document.getElementById("endDisplay").innerText = formatHour(sliderEnd);
+      document.getElementById("endDisplay").innerText   = formatHour(sliderEnd);
 
-      // Find the index in hourly.time that matches the current hour,
-      // so slider value 0 = now, not midnight.
       const now = new Date();
       const nowIndex = hourlyData.hourly.time.findIndex(t => {
         const d = new Date(t);
@@ -233,73 +471,137 @@
       renderResults(offset + sliderStart, offset + sliderEnd, sliderStart, sliderEnd);
     }
 
+    function updateBackground(weatherCode, hour) {
+      document.body.classList.remove('bg-sunny-day', 'bg-rainy', 'bg-cloudy', 'bg-night');
+      if (hour < 6 || hour >= 19) {
+        document.body.classList.add('bg-night');
+      } else if (weatherCode >= 51) {
+        document.body.classList.add('bg-rainy');
+      } else if (weatherCode >= 1) {
+        document.body.classList.add('bg-cloudy');
+      } else {
+        document.body.classList.add('bg-sunny-day');
+      }
+    }
+
     function renderResults(start, end, sliderStart, sliderEnd) {
+      if (!hourlyData) return;
+
       const h = hourlyData.hourly;
       const slice = (arr) => arr.slice(start, end + 1);
 
       const temps = slice(h.temperature_2m);
       const feels = slice(h.apparent_temperature);
-      const rain = slice(h.precipitation_probability);
-      const wind = slice(h.wind_speed_10m);
+      const rain  = slice(h.precipitation_probability);
+      const wind  = slice(h.wind_speed_10m);
       const humid = slice(h.relative_humidity_2m);
-      const uv = slice(h.uv_index);
+      const uv    = slice(h.uv_index);
 
       const labels = [];
       for (let i = 0; i <= end - start; i++) labels.push(formatHour(sliderStart + i));
 
-      // Calculate stats
-      const minTemp = Math.min(...temps).toFixed(1);
-      const maxTemp = Math.max(...temps).toFixed(1);
-      const avgFeel = (feels.reduce((a,b)=>a+b,0)/feels.length).toFixed(1);
-      const maxRain = Math.max(...rain);
-      const maxWind = Math.max(...wind).toFixed(1);
-      const maxUV = Math.max(...uv).toFixed(1);
+      const minTemp  = Math.min(...temps).toFixed(1);
+      const maxTemp  = Math.max(...temps).toFixed(1);
+      const avgFeel  = (feels.reduce((a,b)=>a+b,0)/feels.length).toFixed(1);
+      const maxRain  = Math.max(...rain);
+      const maxWind  = Math.max(...wind).toFixed(1);
+      const maxUV    = Math.max(...uv).toFixed(1);
       const avgHumid = Math.round(humid.reduce((a,b)=>a+b,0)/humid.length);
 
-      // Generate advice
-      const advice = generateAdvice(minTemp, maxTemp, avgFeel, maxRain, maxWind, maxUV, avgHumid);
+      updateBackground(h.weather_code[start], new Date().getHours());
+
+      const advice    = generateAdvice(minTemp, maxTemp, avgFeel, maxRain, maxWind, maxUV, avgHumid);
       const scenarios = generateScenarios(avgFeel, maxRain, maxWind, maxUV, avgHumid);
 
+      // Fill overview panel
+      document.getElementById("overviewPanel").innerHTML = `
+        <div class="overview-city">${hourlyData.cityName}</div>
+        <div class="overview-time">${formatHour(sliderStart)} &rarr; ${formatHour(sliderEnd)}</div>
+        <div class="overview-temp">${parseFloat(temps[0]).toFixed(1)}<span class="temp-unit">&thinsp;°C</span></div>
+        <div class="overview-feels">Feels like ${avgFeel}°C</div>
+        <div class="overview-mini-stats">
+          <div class="mini-stat">
+            <span class="mini-stat-label">Rain</span>
+            <span class="mini-stat-value">${maxRain}%</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat-label">Wind</span>
+            <span class="mini-stat-value">${maxWind} m/s</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat-label">UV Index</span>
+            <span class="mini-stat-value">${maxUV}</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat-label">Humidity</span>
+            <span class="mini-stat-value">${avgHumid}%</span>
+          </div>
+        </div>
+      `;
+
+      // Fill results: charts + conditions + advice + activity tips
       document.getElementById("results").innerHTML = `
-        <div class="card">
-          <h2 style="margin:0;">${hourlyData.cityName}</h2>
-          <div style="color:#64748b; margin-top:4px;">${formatHour(sliderStart)} → ${formatHour(sliderEnd)}</div>
-          <div class="summary">
-            <div class="stat"><div class="stat-label">Temp Range</div><div class="stat-value">${minTemp}° ~ ${maxTemp}°</div></div>
-            <div class="stat"><div class="stat-label">Feels Like</div><div class="stat-value">${avgFeel}°C</div></div>
-            <div class="stat"><div class="stat-label">Rain Chance</div><div class="stat-value">${maxRain}%</div></div>
-            <div class="stat"><div class="stat-label">Max Wind</div><div class="stat-value">${maxWind} m/s</div></div>
-            <div class="stat"><div class="stat-label">Max UV</div><div class="stat-value">${maxUV}</div></div>
-            <div class="stat"><div class="stat-label">Humidity</div><div class="stat-value">${avgHumid}%</div></div>
+        <div class="charts-row">
+          <div class="card">
+            <div class="card-title">Temperature &amp; Feels Like</div>
+            <div class="chart-container"><canvas id="tempChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Precipitation Probability</div>
+            <div class="chart-container"><canvas id="rainChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="card">
+            <div class="card-title">Wind &amp; Humidity</div>
+            <div class="chart-container"><canvas id="windChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Conditions</div>
+            <div class="stats-grid">
+              <div class="stat">
+                <div class="stat-label">Temp Range</div>
+                <div class="stat-value">${minTemp}° <span style="opacity:.35">—</span> ${maxTemp}°</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Feels Like</div>
+                <div class="stat-value">${avgFeel}<span class="stat-unit"> °C</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Max Wind</div>
+                <div class="stat-value">${maxWind}<span class="stat-unit"> m/s</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Max UV</div>
+                <div class="stat-value">${maxUV}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Rain Chance</div>
+                <div class="stat-value">${maxRain}<span class="stat-unit">%</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Humidity</div>
+                <div class="stat-value">${avgHumid}<span class="stat-unit">%</span></div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="card">
-          <h3 style="margin-top:0;">📈 Temperature & Feels Like</h3>
-          <div class="chart-container"><canvas id="tempChart"></canvas></div>
+          <div class="card-title">What to Wear &amp; Bring</div>
+          <div class="advice-list">
+            ${advice.map(a => `<div class="advice-item ${a.level || ''}">${a.text}</div>`).join("")}
+          </div>
         </div>
 
         <div class="card">
-          <h3 style="margin-top:0;">🌧️ Rain Probability</h3>
-          <div class="chart-container"><canvas id="rainChart"></canvas></div>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">💨 Wind & Humidity</h3>
-          <div class="chart-container"><canvas id="windChart"></canvas></div>
-        </div>
-
-        <div class="card advice-section">
-          <h3>👕 What to Wear & Bring</h3>
-          ${advice.map(a => `<div class="advice-item ${a.level || ''}">${a.text}</div>`).join("")}
-        </div>
-
-        <div class="card">
-          <h3 style="margin-top:0;">🎯 Activity Tips</h3>
+          <div class="card-title">Activity Tips</div>
           <div class="scenario-grid">
             ${scenarios.map(s => `
               <div class="scenario-card">
-                <div class="scenario-title">${s.title}</div>
+                <div class="scenario-icon">${s.icon}</div>
+                <div class="scenario-name">${s.title}</div>
                 <div class="scenario-tip">${s.tip}</div>
               </div>
             `).join("")}
@@ -307,34 +609,53 @@
         </div>
       `;
 
-      // Render charts
       renderCharts(labels, temps, feels, rain, wind, humid);
     }
 
     function renderCharts(labels, temps, feels, rain, wind, humid) {
-      // Destroy old charts
       Object.values(charts).forEach(c => c.destroy());
       charts = {};
+
+      const gridColor   = 'rgba(255,255,255,0.07)';
+      const tickColor   = 'rgba(255,255,255,0.4)';
+      const legendColor = 'rgba(255,255,255,0.6)';
+      const tickFont    = { size: 11 };
+
+      const xAxis = { grid: { color: gridColor }, ticks: { color: tickColor, font: tickFont } };
+      const yAxis = { grid: { color: gridColor }, ticks: { color: tickColor, font: tickFont } };
 
       charts.temp = new Chart(document.getElementById('tempChart'), {
         type: 'line',
         data: {
           labels,
           datasets: [
-            { label: 'Temperature (°C)', data: temps, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.3, fill: true },
-            { label: 'Feels Like (°C)', data: feels, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.3, borderDash: [5,5] }
+            { label: 'Temperature (°C)', data: temps, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.12)', tension: 0.3, fill: true, pointRadius: 3, pointHoverRadius: 5 },
+            { label: 'Feels Like (°C)',  data: feels, borderColor: '#fbbf24', backgroundColor: 'transparent',            tension: 0.3, borderDash: [5,5], pointRadius: 2 }
           ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: legendColor, font: tickFont, boxWidth: 12 } } },
+          scales: { x: xAxis, y: yAxis }
+        }
       });
 
       charts.rain = new Chart(document.getElementById('rainChart'), {
         type: 'bar',
         data: {
           labels,
-          datasets: [{ label: 'Rain Chance (%)', data: rain, backgroundColor: '#3b82f6' }]
+          datasets: [{ label: 'Rain Chance (%)', data: rain, backgroundColor: 'rgba(96,165,250,0.5)', borderColor: '#60a5fa', borderWidth: 1, borderRadius: 4 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, beginAtZero: true } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: legendColor, font: tickFont, boxWidth: 12 } } },
+          scales: {
+            x: xAxis,
+            y: { max: 100, beginAtZero: true, grid: { color: gridColor }, ticks: { color: tickColor, font: tickFont } }
+          }
+        }
       });
 
       charts.wind = new Chart(document.getElementById('windChart'), {
@@ -342,15 +663,18 @@
         data: {
           labels,
           datasets: [
-            { label: 'Wind (m/s)', data: wind, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, yAxisID: 'y' },
-            { label: 'Humidity (%)', data: humid, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', tension: 0.3, yAxisID: 'y1' }
+            { label: 'Wind (m/s)',   data: wind,  borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)',  tension: 0.3, yAxisID: 'y',  pointRadius: 3 },
+            { label: 'Humidity (%)', data: humid, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', tension: 0.3, yAxisID: 'y1', pointRadius: 3 }
           ]
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: legendColor, font: tickFont, boxWidth: 12 } } },
           scales: {
-            y: { type: 'linear', position: 'left', title: { display: true, text: 'Wind (m/s)' } },
-            y1: { type: 'linear', position: 'right', max: 100, title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } }
+            x:  xAxis,
+            y:  { type: 'linear', position: 'left',  grid: { color: gridColor }, ticks: { color: tickColor, font: tickFont }, title: { display: true, text: 'Wind (m/s)',   color: tickColor, font: { size: 10 } } },
+            y1: { type: 'linear', position: 'right', max: 100, grid: { drawOnChartArea: false }, ticks: { color: tickColor, font: tickFont }, title: { display: true, text: 'Humidity (%)', color: tickColor, font: { size: 10 } } }
           }
         }
       });
@@ -360,69 +684,77 @@
       const advice = [];
       const f = parseFloat(feel);
 
-      // Outfit
-      if (f >= 28) advice.push({ text: "👕 T-shirt + shorts. It's hot out there!", level: "advice-warning" });
-      else if (f >= 22) advice.push({ text: "👔 Light long sleeve or t-shirt. Comfortable weather." });
-      else if (f >= 15) advice.push({ text: "🧥 Add a light jacket or cardigan." });
-      else if (f >= 8) advice.push({ text: "🧥 Sweater + medium coat. It's chilly." });
-      else if (f >= 0) advice.push({ text: "🧣 Heavy coat + scarf. Bundle up!", level: "advice-warning" });
-      else advice.push({ text: "🥶 Puffer jacket + gloves + hat. Freezing!", level: "advice-danger" });
+      if (f >= 28)        advice.push({ text: "T-shirt and shorts. It's hot out there.",              level: "advice-warning" });
+      else if (f >= 22)   advice.push({ text: "Light long sleeve or t-shirt. Comfortable weather." });
+      else if (f >= 15)   advice.push({ text: "Add a light jacket or cardigan." });
+      else if (f >= 8)    advice.push({ text: "Sweater and a medium coat. It's chilly." });
+      else if (f >= 0)    advice.push({ text: "Heavy coat and scarf. Bundle up.",                     level: "advice-warning" });
+      else                advice.push({ text: "Puffer jacket, gloves, and hat. Freezing.",             level: "advice-danger" });
 
-      // Temp range
-      if (maxT - minT >= 8) advice.push({ text: `🌡️ Big temp swing (${minT}° → ${maxT}°). Wear layers!`, level: "advice-warning" });
+      if (maxT - minT >= 8) advice.push({ text: `Big temperature swing (${minT}° to ${maxT}°). Wear layers.`, level: "advice-warning" });
 
-      // Rain
-      if (rain >= 70) advice.push({ text: "☔ High rain chance. Bring umbrella + waterproof shoes!", level: "advice-danger" });
-      else if (rain >= 40) advice.push({ text: "🌂 Possible rain. Pack a foldable umbrella.", level: "advice-warning" });
-      else if (rain >= 20) advice.push({ text: "☁️ Slight chance of rain. Maybe just in case." });
+      if (rain >= 70)       advice.push({ text: "High rain chance. Bring an umbrella and waterproof shoes.",    level: "advice-danger"  });
+      else if (rain >= 40)  advice.push({ text: "Possible rain. Pack a foldable umbrella.",                     level: "advice-warning" });
+      else if (rain >= 20)  advice.push({ text: "Slight chance of rain. Maybe bring one just in case." });
 
-      // Wind
-      if (wind >= 10) advice.push({ text: "💨 Strong wind! Avoid loose hats and skirts. Windproof jacket.", level: "advice-danger" });
-      else if (wind >= 7) advice.push({ text: "💨 Windy. Consider a windbreaker.", level: "advice-warning" });
+      if (wind >= 10)       advice.push({ text: "Strong wind. Avoid loose hats. Consider a windproof jacket.", level: "advice-danger"  });
+      else if (wind >= 7)   advice.push({ text: "Windy. Consider a windbreaker.",                               level: "advice-warning" });
 
-      // UV
-      if (uv >= 8) advice.push({ text: "☀️ Very high UV! SPF 50+, hat, and sunglasses are a must.", level: "advice-danger" });
-      else if (uv >= 6) advice.push({ text: "🕶️ High UV. Apply sunscreen, wear sunglasses.", level: "advice-warning" });
-      else if (uv >= 3) advice.push({ text: "🧴 Moderate UV. Sunscreen recommended." });
+      if (uv >= 8)          advice.push({ text: "Very high UV. SPF 50+, hat, and sunglasses are essential.",   level: "advice-danger"  });
+      else if (uv >= 6)     advice.push({ text: "High UV. Apply sunscreen and wear sunglasses.",                level: "advice-warning" });
+      else if (uv >= 3)     advice.push({ text: "Moderate UV. Sunscreen recommended." });
 
-      // Humidity
-      if (humid >= 80) advice.push({ text: "💧 Very humid. Wear breathable fabrics. Stay hydrated!", level: "advice-warning" });
-      else if (humid <= 30) advice.push({ text: "🏜️ Very dry. Use moisturizer and lip balm. Hydrate!", level: "advice-warning" });
+      if (humid >= 80)      advice.push({ text: "Very humid. Wear breathable fabrics and stay hydrated.",      level: "advice-warning" });
+      else if (humid <= 30) advice.push({ text: "Very dry air. Use moisturizer and lip balm. Hydrate.",        level: "advice-warning" });
 
       return advice;
     }
+
+    const ICONS = {
+      briefcase: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>`,
+      activity:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+      users:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`,
+      camera:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+      droplet:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>`,
+      shield:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`
+    };
 
     function generateScenarios(feel, rain, wind, uv, humid) {
       const f = parseFloat(feel);
       return [
         {
-          title: "💼 Work / Commute",
-          tip: rain >= 40 ? "Leave 10 min early; rain slows transit." : (f >= 28 ? "Carry water; bring backup deodorant." : "Normal commute, but check transit.")
+          icon:  ICONS.briefcase,
+          title: "Work / Commute",
+          tip:   rain >= 40 ? "Leave 10 min early — rain slows transit." : (f >= 28 ? "Carry water; bring a backup shirt." : "Normal commute. Check transit updates.")
         },
         {
-          title: "🏃 Outdoor Exercise",
-          tip: uv >= 6 ? "Run early morning or after 5pm to avoid UV." : (f <= 5 ? "Warm up indoors first. Cover ears." : f >= 28 ? "Hydrate every 15 min. Avoid noon." : "Great weather for a run!")
+          icon:  ICONS.activity,
+          title: "Outdoor Exercise",
+          tip:   uv >= 6 ? "Run early morning or after 5 pm to avoid UV." : (f <= 5 ? "Warm up indoors first. Cover ears." : f >= 28 ? "Hydrate every 15 min. Avoid midday." : "Great conditions for a run.")
         },
         {
-          title: "💕 Date / Social",
-          tip: rain >= 40 ? "Pick an indoor venue (café, museum)." : (wind >= 7 ? "Avoid rooftop bars; wind ruins hair." : "Outdoor patio is perfect!")
+          icon:  ICONS.users,
+          title: "Social / Date",
+          tip:   rain >= 40 ? "Pick an indoor venue — café or museum." : (wind >= 7 ? "Skip rooftop bars. Wind disrupts." : "Outdoor seating is a good pick.")
         },
         {
-          title: "📸 Photo / Strolling",
-          tip: rain >= 40 ? "Rainy reflections look great — bring a clear umbrella!" : (uv >= 6 ? "Golden hour (1hr before sunset) for best photos." : "Lighting's good — go shoot!")
+          icon:  ICONS.camera,
+          title: "Photography",
+          tip:   rain >= 40 ? "Rainy reflections are striking. Bring a clear umbrella." : (uv >= 6 ? "Golden hour (1 hr before sunset) for the best light." : "Good lighting — go shoot.")
         },
         {
-          title: "💧 Hydration",
-          tip: f >= 28 || uv >= 7 ? "Drink 500ml every 2 hours. Carry a bottle." : "Normal hydration. ~1.5L for the outing."
+          icon:  ICONS.droplet,
+          title: "Hydration",
+          tip:   f >= 28 || uv >= 7 ? "Drink 500 ml every 2 hours. Carry a bottle." : "Normal hydration. Aim for ~1.5 L during your outing."
         },
         {
-          title: "🤧 Allergy / Health",
-          tip: wind >= 7 ? "Wind kicks up pollen — wear a mask if sensitive." : (humid <= 30 ? "Dry air irritates throat. Sip warm water." : "Normal conditions.")
+          icon:  ICONS.shield,
+          title: "Health",
+          tip:   wind >= 7 ? "Wind kicks up pollen — mask up if sensitive." : (humid <= 30 ? "Dry air can irritate throat. Sip warm water." : "Normal conditions.")
         }
       ];
     }
 
-    // Auto-search on load
     window.addEventListener("DOMContentLoaded", searchCity);
   </script>
 
