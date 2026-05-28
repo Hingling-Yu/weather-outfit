@@ -207,22 +207,33 @@
     function updateResults() {
       if (!hourlyData) return;
 
-      let start = parseInt(document.getElementById("startHour").value);
-      let end = parseInt(document.getElementById("endHour").value);
+      let sliderStart = parseInt(document.getElementById("startHour").value);
+      let sliderEnd = parseInt(document.getElementById("endHour").value);
 
-      // Make sure end > start
-      if (end <= start) {
-        end = start + 1;
-        document.getElementById("endHour").value = end;
+      if (sliderEnd <= sliderStart) {
+        sliderEnd = sliderStart + 1;
+        document.getElementById("endHour").value = sliderEnd;
       }
 
-      document.getElementById("startDisplay").innerText = formatHour(start);
-      document.getElementById("endDisplay").innerText = formatHour(end);
+      document.getElementById("startDisplay").innerText = formatHour(sliderStart);
+      document.getElementById("endDisplay").innerText = formatHour(sliderEnd);
 
-      renderResults(start, end);
+      // Find the index in hourly.time that matches the current hour,
+      // so slider value 0 = now, not midnight.
+      const now = new Date();
+      const nowIndex = hourlyData.hourly.time.findIndex(t => {
+        const d = new Date(t);
+        return d.getFullYear() === now.getFullYear() &&
+               d.getMonth()    === now.getMonth()    &&
+               d.getDate()     === now.getDate()     &&
+               d.getHours()    === now.getHours();
+      });
+
+      const offset = nowIndex >= 0 ? nowIndex : 0;
+      renderResults(offset + sliderStart, offset + sliderEnd, sliderStart, sliderEnd);
     }
 
-    function renderResults(start, end) {
+    function renderResults(start, end, sliderStart, sliderEnd) {
       const h = hourlyData.hourly;
       const slice = (arr) => arr.slice(start, end + 1);
 
@@ -234,7 +245,7 @@
       const uv = slice(h.uv_index);
 
       const labels = [];
-      for (let i = start; i <= end; i++) labels.push(formatHour(i));
+      for (let i = 0; i <= end - start; i++) labels.push(formatHour(sliderStart + i));
 
       // Calculate stats
       const minTemp = Math.min(...temps).toFixed(1);
@@ -252,7 +263,7 @@
       document.getElementById("results").innerHTML = `
         <div class="card">
           <h2 style="margin:0;">${hourlyData.cityName}</h2>
-          <div style="color:#64748b; margin-top:4px;">${formatHour(start)} → ${formatHour(end)}</div>
+          <div style="color:#64748b; margin-top:4px;">${formatHour(sliderStart)} → ${formatHour(sliderEnd)}</div>
           <div class="summary">
             <div class="stat"><div class="stat-label">Temp Range</div><div class="stat-value">${minTemp}° ~ ${maxTemp}°</div></div>
             <div class="stat"><div class="stat-label">Feels Like</div><div class="stat-value">${avgFeel}°C</div></div>
