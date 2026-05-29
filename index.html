@@ -13,7 +13,7 @@
       min-height: 100vh;
       padding: 36px 20px 48px;
       color: #ffffff;
-      background: linear-gradient(135deg, #0f2d5e 0%, #1d4ed8 45%, #92400e 100%);
+      background: linear-gradient(135deg, #0f2d5e 0%, hsl(224, 76%, 48%) 45%, #92400e 100%);
       transition: background 1s ease;
     }
 
@@ -62,6 +62,29 @@
 
     /* ── Search panel ── */
     .input-row { display: flex; gap: 10px; }
+    .search-wrapper { position: relative; flex: 1; }
+    .search-wrapper input[type="text"] { flex: none; width: 100%; }
+    .autocomplete-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0; right: 0;
+      z-index: 100;
+      background: rgba(15,23,42,0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .autocomplete-item {
+      padding: 11px 16px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.85);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .autocomplete-item:hover,
+    .autocomplete-item.active { background: rgba(96,165,250,0.15); }
 
     input[type="text"] {
       flex: 1;
@@ -361,7 +384,10 @@
       <!-- Search + time controls -->
       <div class="card">
         <div class="input-row">
-          <input type="text" id="city" placeholder="Enter city (e.g. New York, Tokyo)"  />
+          <div class="search-wrapper">
+            <input type="text" id="city" placeholder="Enter city (e.g. New York, Tokyo)" onkeydown="handleCityKeydown(event)" autocomplete="off" />
+            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display:none;"></div>
+          </div>
           <button onclick="searchCity()">Search</button>
         </div>
 
@@ -394,36 +420,127 @@
   <script>
     let hourlyData = null;
     let charts = {};
+    let autocompleteData = [];
+    let activeIndex = -1;
+    let debounceTimer = null;
+
+    function closeDropdown() {
+      document.getElementById("autocompleteDropdown").style.display = "none";
+      autocompleteData = [];
+      activeIndex = -1;
+    }
+
+    function highlightItem() {
+      document.querySelectorAll(".autocomplete-item").forEach((el, i) =>
+        el.classList.toggle("active", i === activeIndex));
+    }
+
+    function renderDropdown() {
+      const dropdown = document.getElementById("autocompleteDropdown");
+      if (autocompleteData.length === 0) { closeDropdown(); return; }
+      dropdown.innerHTML = autocompleteData.map((r, i) => {
+        const label = [r.name, r.admin1, r.country].filter(Boolean).join(", ");
+        return `<div class="autocomplete-item${i === activeIndex ? " active" : ""}" onmousedown="selectSuggestion(${i})">${label}</div>`;
+      }).join("");
+      dropdown.style.display = "block";
+    }
+
+    async function fetchSuggestions(query) {
+      try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=20&language=en&format=json`);
+        const data = await res.json();
+        const raw = data.results || [];
+        const q = query.toLowerCase();
+        const keepCodes = new Set(["PPLX", "PPLR", "PPLA", "PPLA2", "PPLA3"]);
+        const filtered = raw.filter(r => {
+          const pop = r.population || 0;
+          const code = r.feature_code || "";
+          if (pop >= 10000) return true;
+          if (code.startsWith("PPL") && pop >= 1000) return true;
+          if (keepCodes.has(code)) return true;
+          if ((r.admin1 || "").toLowerCase().includes(q)) return true;
+          if ((r.admin2 || "").toLowerCase().includes(q)) return true;
+          return false;
+        });
+        filtered.sort((a, b) => (b.population || 0) - (a.population || 0));
+        autocompleteData = filtered.slice(0, 8);
+        renderDropdown();
+      } catch (e) {
+        autocompleteData = [];
+        closeDropdown();
+      }
+    }
+
+    function selectSuggestion(index) {
+      const r = autocompleteData[index];
+      if (!r) return;
+      const label = [r.name, r.admin1, r.country].filter(Boolean).join(", ");
+      document.getElementById("city").value = label;
+      closeDropdown();
+      fetchWeatherByCoords(r.latitude, r.longitude, label);
+    }
+
+    function handleCityKeydown(e) {
+      const open = document.getElementById("autocompleteDropdown").style.display !== "none";
+      if (e.key === "ArrowDown") {
+        if (!open) return;
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, autocompleteData.length - 1);
+        highlightItem();
+      } else if (e.key === "ArrowUp") {
+        if (!open) return;
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, -1);
+        highlightItem();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (open && activeIndex >= 0) selectSuggestion(activeIndex);
+        else { closeDropdown(); searchCity(); }
+      } else if (e.key === "Escape") {
+        closeDropdown();
+      }
+    }
+
+    function setOverviewMessage(text) {
+      document.getElementById("overviewPanel").innerHTML =
+        `<div class="overview-placeholder">${text}</div>`;
+    }
 
     async function searchCity() {
       const city = document.getElementById("city").value.trim();
       if (!city) return alert("Please enter a city!");
-
+      closeDropdown();
       document.getElementById("loading").style.display = "block";
       document.getElementById("results").style.display = "none";
-
       try {
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
         const geoRes = await fetch(geoUrl);
         const geoData = await geoRes.json();
-
         if (!geoData.results || geoData.results.length === 0) {
-          alert("City not found! Please check spelling.");
           document.getElementById("loading").style.display = "none";
+          setOverviewMessage("No results found. Try a different city name.");
           return;
         }
-
         const { latitude, longitude, name, country } = geoData.results[0];
+        await fetchWeatherByCoords(latitude, longitude, `${name}, ${country}`);
+      } catch (e) {
+        alert("Error loading data. Please try again.");
+        document.getElementById("loading").style.display = "none";
+        console.error(e);
+      }
+    }
 
+    async function fetchWeatherByCoords(latitude, longitude, displayName) {
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("results").style.display = "none";
+      try {
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,wind_speed_10m,relative_humidity_2m,uv_index,weather_code&temperature_unit=celsius&wind_speed_unit=ms&forecast_days=2&timezone=auto`;
         const weatherRes = await fetch(weatherUrl);
         hourlyData = await weatherRes.json();
-        hourlyData.cityName = `${name}, ${country}`;
-
+        hourlyData.cityName = displayName;
         document.getElementById("loading").style.display = "none";
         document.getElementById("timeControls").style.display = "block";
         document.getElementById("results").style.display = "block";
-
         updateResults();
       } catch (e) {
         alert("Error loading data. Please try again.");
@@ -434,6 +551,21 @@
 
     document.getElementById("startHour").addEventListener("input", updateResults);
     document.getElementById("endHour").addEventListener("input", updateResults);
+
+    document.getElementById("city").addEventListener("input", function() {
+      clearTimeout(debounceTimer);
+      activeIndex = -1;
+      setOverviewMessage("Search a city to view conditions");
+      const val = this.value.trim();
+      if (val.length < 2) { closeDropdown(); return; }
+      debounceTimer = setTimeout(() => fetchSuggestions(val), 300);
+    });
+
+    document.addEventListener("click", function(e) {
+      if (!document.querySelector(".search-wrapper").contains(e.target)) {
+        closeDropdown();
+      }
+    });
 
     function formatHour(offset) {
       if (offset === 0) return "Now";
