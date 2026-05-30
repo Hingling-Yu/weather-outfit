@@ -209,7 +209,14 @@
     .overview-feels {
       font-size: 14px;
       color: rgba(255,255,255,0.5);
-      margin-bottom: 20px;
+      margin-bottom: 12px;
+    }
+
+    .overview-summary {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.5;
+      margin-bottom: 16px;
     }
 
     .overview-mini-stats {
@@ -644,6 +651,7 @@
 
       const advice    = generateAdvice(minTemp, maxTemp, avgFeel, maxRain, maxWind, maxUV, avgHumid);
       const scenarios = generateScenarios(avgFeel, maxRain, maxWind, maxUV, avgHumid);
+      const summary   = generateSummary(maxTemp, maxRain, maxWind, maxUV, sliderStart);
 
       // Fill overview panel
       document.getElementById("overviewPanel").innerHTML = `
@@ -651,6 +659,7 @@
         <div class="overview-time">${formatHour(sliderStart)} &rarr; ${formatHour(sliderEnd)}</div>
         <div class="overview-temp">${parseFloat(temps[0]).toFixed(1)}<span class="temp-unit">&thinsp;°C</span></div>
         <div class="overview-feels">Feels like ${avgFeel}°C</div>
+        <div class="overview-summary">${summary}</div>
         <div class="overview-mini-stats">
           <div class="mini-stat">
             <span class="mini-stat-label">Rain</span>
@@ -810,6 +819,22 @@
           }
         }
       });
+    }
+
+    function generateSummary(maxTemp, maxRain, maxWind, maxUV, sliderStart) {
+      const t = parseFloat(maxTemp);
+      const w = parseFloat(maxWind);
+      const u = parseFloat(maxUV);
+      const hour = (new Date().getHours() + sliderStart) % 24;
+      const isDay = hour >= 6 && hour < 19;
+      const timeLabel = hour >= 17 ? "this evening" : hour >= 12 ? "this afternoon" : "today";
+
+      if (maxRain > 60) return `Bring an umbrella, it's looking pretty wet out there ${timeLabel}.`;
+      if (u > 5 && isDay) return `Strong sun ${timeLabel}, you'll want sunscreen if you're out for more than 20 minutes.`;
+      if (t > 30) return `Hot one ${timeLabel}, stay hydrated and avoid being outside during peak hours.`;
+      if (t < 5) return `Bundle up, it's genuinely cold out there ${timeLabel}.`;
+      if (w > 8) return `Pretty gusty ${timeLabel}, maybe skip the umbrella and grab a windbreaker instead.`;
+      return `Solid day to be outside, nothing to worry about.`;
     }
 
     function generateAdvice(minT, maxT, feel, rain, wind, uv, humid) {
